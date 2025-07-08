@@ -1,0 +1,24 @@
+# Build files and output artifacts
+build/
+*.bin
+*.elf
+*.hex
+*.o
+*.d
+
+# Mac system files
+.DS_Store
+**/.DS_Store
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Arduino backup files
+*.bak
+
+# Editor swap/temporary files
+*.swp
+*.swo
+*.swn
