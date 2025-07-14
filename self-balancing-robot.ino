@@ -1,19 +1,34 @@
 #include <Wire.h>
 
+// MPU6050
 const int MPU = 0x68;  // Default I2C address
 const int MPU_SDA = 17;
 const int MPU_SCL = 18;
 
+// Variables
 int16_t accXLSB, accYLSB, accZLSB;
 float accX, accY, accZ;
+float accBiasX = -0.06;
+float accBiasY = 0.01;
+float accBiasZ = 0.03;
 
 int16_t gyroXLSB, gyroYLSB, gyroZLSB;
 float gyroX, gyroY, gyroZ;
 
+float gyroCalibrationX = 0;
+float gyroCalibrationY = 0;
+float gyroCalibrationZ = 0;
+
+float gyroBiasX = -0.40;
+float gyroBiasY = 0.44;
+float gyroBiasZ = 1.12;
+
 void setup() {
   Serial.begin(115200);
-  Wire.begin(MPU_SDA, MPU_SCL);
+  Wire.begin(MPU_SDA, MPU_SCL, 400000); // Start I2C on fast mode (400 kHz)
+  
   setupMPU();
+  // calibrateGyro();
 }
 
 void loop() {
@@ -66,9 +81,9 @@ void readAccel() {
   accZLSB = Wire.read() << 8 | Wire.read();
 
   // Convert to g
-  accX = accXLSB / 16384.0;
-  accY = accYLSB / 16384.0;
-  accZ = accZLSB / 16384.0;
+  accX = accXLSB / 16384.0 + accBiasX;
+  accY = accYLSB / 16384.0 + accBiasY;
+  accZ = accZLSB / 16384.0 + accBiasZ;
 }
 
 void readGyro() {
@@ -83,7 +98,29 @@ void readGyro() {
   gyroZLSB = Wire.read() << 8 | Wire.read();
 
   // Convert to deg/s
-  gyroX = gyroXLSB / 131.0;
-  gyroY = gyroYLSB / 131.0;
-  gyroZ = gyroZLSB / 131.0;
+  gyroX = gyroXLSB / 131.0 + gyroBiasX;
+  gyroY = gyroYLSB / 131.0 + gyroBiasY;
+  gyroZ = gyroZLSB / 131.0 + gyroBiasZ;
+}
+
+void calibrateGyro() {
+  // Average 2000 gyro readings while MPU6050 is stationary
+  for (int i = 0; i < 2000; i++) {
+    readGyro();
+    gyroCalibrationX += gyroX;
+    gyroCalibrationY += gyroY;
+    gyroCalibrationZ += gyroZ;
+    delay(1);
+  }
+
+  gyroCalibrationX /= 2000;
+  gyroCalibrationY /= 2000;
+  gyroCalibrationZ /= 2000;
+
+  Serial.print("Gyro Bias X = ");
+  Serial.print(-gyroCalibrationX);
+  Serial.print(", Gyro Bias Y = ");
+  Serial.print(-gyroCalibrationY);
+  Serial.print(", Gyro Bias Z = ");
+  Serial.println(-gyroCalibrationZ);
 }
