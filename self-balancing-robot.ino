@@ -1,17 +1,19 @@
 #include <Wire.h>
 
-// MPU6050
+// MPU6050 I2C
 const int MPU = 0x68;  // Default I2C address
 const int MPU_SDA = 17;
 const int MPU_SCL = 18;
 
-// Variables
-int16_t accXLSB, accYLSB, accZLSB;
-float accX, accY, accZ;
-float accBiasX = -0.06;
-float accBiasY = 0.01;
-float accBiasZ = 0.03;
+// Accelerometer
+int16_t accelXLSB, accelYLSB, accelZLSB;
+float accelX, accelY, accelZ, accelAngle;
 
+float accelBiasX = -0.06;
+float accelBiasY = 0.01;
+float accelBiasZ = 0.03;
+
+// Gyroscope
 int16_t gyroXLSB, gyroYLSB, gyroZLSB;
 float gyroX, gyroY, gyroZ;
 
@@ -23,30 +25,48 @@ float gyroBiasX = -0.40;
 float gyroBiasY = 0.44;
 float gyroBiasZ = 1.12;
 
+// Loop timing
+uint32_t previousTime;
+int timeDelta = 4000; // in microseconds, 250 Hz
+
+// Kalman filter
+float kalmanAngle = 0; // Inital angle estimate
+float kalmanUncertainty = 2 * 2; // Variance of initial angle estimate
+float gyroUncertainty = 4 * 4;
+float accelUncertainty = 3 * 3;
+float kalmanGain;
+
 void setup() {
   Serial.begin(115200);
   Wire.begin(MPU_SDA, MPU_SCL, 400000); // Start I2C on fast mode (400 kHz)
   
   setupMPU();
   // calibrateGyro();
+
+  previousTime = micros();
 }
 
 void loop() {
   readAccel();
   readGyro();
-  Serial.print("Gyro X = ");
-  Serial.print(gyroX);
-  Serial.print(" Gyro Y = ");
-  Serial.print(gyroY);
-  Serial.print(" Gyro Z = ");
-  Serial.print(gyroZ);
-  Serial.print(" Acc X = ");
-  Serial.print(accX);
-  Serial.print(" Acc Y = ");
-  Serial.print(accY);
-  Serial.print(" Acc Z = ");
-  Serial.println(accZ);
-  delay(1000);
+
+  // Pitch angle estimate from accelerometer
+  accelAngle = atan2(-accelX, sqrt(pow(accelY, 2) + pow(accelZ, 2))) * (180 / 3.14159);
+  
+  // Kalman filter
+  kalmanAngle = kalmanAngle + (timeDelta / 1e6) * gyroY;
+  kalmanUncertainty = kalmanUncertainty + pow(timeDelta / 1e6, 2) * gyroUncertainty;
+  kalmanGain = kalmanUncertainty / (kalmanUncertainty + accelUncertainty);
+  kalmanAngle = kalmanAngle + kalmanGain * (accelAngle - kalmanAngle);
+  kalmanUncertainty = (1 - kalmanGain) * kalmanUncertainty;
+
+  Serial.print("Accel_angle:");
+  Serial.print(accelAngle);
+  Serial.print(" Kalman_angle:");
+  Serial.println(kalmanAngle);
+
+  while (micros() - previousTime < timeDelta); // Wait
+  previousTime = micros();
 }
 
 void setupMPU() {
@@ -76,14 +96,14 @@ void readAccel() {
   Wire.endTransmission();
 
   Wire.requestFrom(MPU, 6);
-  accXLSB = Wire.read() << 8 | Wire.read();
-  accYLSB = Wire.read() << 8 | Wire.read();
-  accZLSB = Wire.read() << 8 | Wire.read();
+  accelXLSB = Wire.read() << 8 | Wire.read();
+  accelYLSB = Wire.read() << 8 | Wire.read();
+  accelZLSB = Wire.read() << 8 | Wire.read();
 
   // Convert to g
-  accX = accXLSB / 16384.0 + accBiasX;
-  accY = accYLSB / 16384.0 + accBiasY;
-  accZ = accZLSB / 16384.0 + accBiasZ;
+  accelX = accelXLSB / 16384.0 + accelBiasX;
+  accelY = accelYLSB / 16384.0 + accelBiasY;
+  accelZ = accelZLSB / 16384.0 + accelBiasZ;
 }
 
 void readGyro() {
