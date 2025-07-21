@@ -20,10 +20,10 @@ LedControl lc2 = LedControl(DIN, CLK, CS2, 1);
 
 // Eye Modes
 // R0 to R7
-  byte circle[8] = {0, 0, 0b00011000, 0b00111100, 0b00111100, 0b00011000, 0, 0};
-  byte blink[8] = {0, 0, 0, 0b00100100, 0b00011000, 0, 0, 0 };
-  byte heart[8] = {0b00011000, 0b00111100, 0b01111110, 0b11111111, 0b11111111, 0b11111111, 0b01100110, 0};
-  byte happyface[8] = {0b00111100, 0b01000010, 0b10011001, 0b10100101, 0b10000001, 0b10100101, 0b01000010, 0b00111100};
+byte circle[8] = {0, 0, 0b00011000, 0b00111100, 0b00111100, 0b00011000, 0, 0};
+byte blink[8] = {0, 0, 0, 0b00100100, 0b00011000, 0, 0, 0 };
+byte heart[8] = {0b00011000, 0b00111100, 0b01111110, 0b11111111, 0b11111111, 0b11111111, 0b01100110, 0};
+byte happyface[8] = {0b00111100, 0b01000010, 0b10011001, 0b10100101, 0b10000001, 0b10100101, 0b01000010, 0b00111100};
 
 const int left = 0;
 const int right = 1;
@@ -78,31 +78,15 @@ void setup() {
   
   setupMPU();
   // calibrateGyro();
-
   setupTB6612FNG();
-
-  previousTime = micros();
-
   setupLed();
+  previousTime = micros();
 }
 
 void loop() {
-  readAccel();
-  readGyro();
+  updateKalman();
 
-  // Pitch angle estimate from accelerometer
-  accelAngle = atan2(-accelX, sqrt(pow(accelY, 2) + pow(accelZ, 2))) * (180 / 3.14159);
-  
-  // Kalman filter
-  kalmanAngle = kalmanAngle + (timeDelta / 1e6) * gyroY;
-  kalmanUncertainty = kalmanUncertainty + pow(timeDelta / 1e6, 2) * gyroUncertainty;
-  kalmanGain = kalmanUncertainty / (kalmanUncertainty + accelUncertainty);
-  kalmanAngle = kalmanAngle + kalmanGain * (accelAngle - kalmanAngle);
-  kalmanUncertainty = (1 - kalmanGain) * kalmanUncertainty;
-
-  Serial.print("Accel_angle:");
-  Serial.print(accelAngle);
-  Serial.print(" Kalman_angle:");
+  Serial.print("Angle:");
   Serial.println(kalmanAngle);
 
   while (micros() - previousTime < timeDelta); // Wait
@@ -203,8 +187,22 @@ void calibrateGyro() {
   Serial.println(-gyroCalibrationZ);
 }
 
-void setMotorSpeed (int motor, int speed) {
+void updateKalman() {
+  readAccel();
+  readGyro();
 
+  // Pitch angle estimate from accelerometer
+  accelAngle = atan2(-accelX, sqrt(pow(accelY, 2) + pow(accelZ, 2))) * (180 / 3.14159);
+  
+  // Kalman filter
+  kalmanAngle = kalmanAngle + (timeDelta / 1e6) * gyroY;
+  kalmanUncertainty = kalmanUncertainty + pow(timeDelta / 1e6, 2) * gyroUncertainty;
+  kalmanGain = kalmanUncertainty / (kalmanUncertainty + accelUncertainty);
+  kalmanAngle = kalmanAngle + kalmanGain * (accelAngle - kalmanAngle);
+  kalmanUncertainty = (1 - kalmanGain) * kalmanUncertainty;
+}
+
+void setMotorSpeed (int motor, int speed) {
   int IN_1;
   int IN_2;
   int PWM;
@@ -235,7 +233,6 @@ void setMotorSpeed (int motor, int speed) {
     digitalWrite(IN_1, LOW);
     digitalWrite(IN_2, LOW);
   }
-
 }
 
 void setupLed() {
@@ -258,7 +255,6 @@ void setupLed() {
 }
 
 void eyeMode(byte eyeMode_values[], int side){
-
   for (int i = 0; i < 8; i += 1) {
     if (side == left) {
       lc1.setColumn(0, i, eyeMode_values[i]);
@@ -266,18 +262,4 @@ void eyeMode(byte eyeMode_values[], int side){
       lc2.setColumn(0, i, eyeMode_values[i]);
     }
   }
-
-
 }
-
-
-
-
-
-
-
-
-
-
-
-
