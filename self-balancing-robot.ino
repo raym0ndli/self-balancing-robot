@@ -3,8 +3,8 @@
 
 // MPU6050 I2C
 const int MPU = 0x68;  // Default I2C address
-const int MPU_SDA = 17;
-const int MPU_SCL = 18;
+const int MPU_SDA = 12;
+const int MPU_SCL = 13;
 
 // LED pins
 const int CS2 = 41;
