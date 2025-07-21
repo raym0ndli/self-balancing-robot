@@ -1,9 +1,32 @@
 #include <Wire.h>
+#include <LedControl.h>
 
 // MPU6050 I2C
 const int MPU = 0x68;  // Default I2C address
 const int MPU_SDA = 17;
 const int MPU_SCL = 18;
+
+// LED pins
+const int CS2 = 41;
+const int CLK = 48;
+const int CS1 = 47;
+const int DIN = 21;
+
+// LED matrix 1 - DIN, CLK, CS
+LedControl lc1 = LedControl(DIN, CLK, CS1, 1);
+
+// LED matrix 2
+LedControl lc2 = LedControl(DIN, CLK, CS2, 1);
+
+// Eye Modes
+// R0 to R7
+  byte circle[8] = {0, 0, 0b00011000, 0b00111100, 0b00111100, 0b00011000, 0, 0};
+  byte blink[8] = {0, 0, 0, 0b00100100, 0b00011000, 0, 0, 0 };
+  byte heart[8] = {0b00011000, 0b00111100, 0b01111110, 0b11111111, 0b11111111, 0b11111111, 0b01100110, 0};
+  byte happyface[8] = {0b00111100, 0b01000010, 0b10011001, 0b10100101, 0b10000001, 0b10100101, 0b01000010, 0b00111100};
+
+const int left = 0;
+const int right = 1;
 
 // TB6612FNG
 const int PWM_A = 4;
@@ -59,6 +82,8 @@ void setup() {
   setupTB6612FNG();
 
   previousTime = micros();
+
+  setupLed();
 }
 
 void loop() {
@@ -86,6 +111,9 @@ void loop() {
   // Testing motors
   setMotorSpeed(0,-100);
   setMotorSpeed(1,100);
+
+  eyeMode(blink, left);
+  eyeMode(heart, right);
 }
 
 void setupMPU() {
@@ -209,6 +237,42 @@ void setMotorSpeed (int motor, int speed) {
   }
 
 }
+
+void setupLed() {
+  pinMode(DIN, OUTPUT);
+  pinMode(CLK, OUTPUT);
+  pinMode(CS1, OUTPUT);
+  pinMode(CS2, OUTPUT);
+
+  lc1.shutdown(0,false);
+  // Set brightness to a medium value
+  lc1.setIntensity(0,8);
+  // Clear the display
+  lc1.clearDisplay(0);
+
+  lc2.shutdown(0,false);
+  // Set brightness to a medium value
+  lc2.setIntensity(0,8);
+  // Clear the display
+  lc2.clearDisplay(0);
+}
+
+void eyeMode(byte eyeMode_values[], int side){
+
+  for (int i = 0; i < 8; i += 1) {
+    if (side == left) {
+      lc1.setColumn(0, i, eyeMode_values[i]);
+    } else {
+      lc2.setColumn(0, i, eyeMode_values[i]);
+    }
+  }
+
+
+}
+
+
+
+
 
 
 
