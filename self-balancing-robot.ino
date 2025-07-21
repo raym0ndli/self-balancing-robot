@@ -5,6 +5,19 @@ const int MPU = 0x68;  // Default I2C address
 const int MPU_SDA = 17;
 const int MPU_SCL = 18;
 
+// TB6612FNG
+const int PWM_A = 4;
+const int AIN_2 = 5;
+const int AIN_1 = 6;
+const int STBY = 7;
+const int BIN_1 = 15;
+const int BIN_2 = 16;
+const int PWM_B = 17;
+
+// Motorrrr
+const int MOTOR_A = 0;
+const int MOTOR_B = 1;
+
 // Accelerometer
 int16_t accelXLSB, accelYLSB, accelZLSB;
 float accelX, accelY, accelZ, accelAngle;
@@ -43,6 +56,8 @@ void setup() {
   setupMPU();
   // calibrateGyro();
 
+  setupTB6612FNG();
+
   previousTime = micros();
 }
 
@@ -67,6 +82,10 @@ void loop() {
 
   while (micros() - previousTime < timeDelta); // Wait
   previousTime = micros();
+
+  // Testing motors
+  setMotorSpeed(0,-100);
+  setMotorSpeed(1,100);
 }
 
 void setupMPU() {
@@ -87,6 +106,17 @@ void setupMPU() {
   Wire.write(0x1C);
   Wire.write(0x00);
   Wire.endTransmission();
+}
+
+void setupTB6612FNG() {
+  pinMode(PWM_A, OUTPUT);
+  pinMode(AIN_2, OUTPUT);
+  pinMode(AIN_1, OUTPUT);
+  pinMode(STBY, OUTPUT);
+  pinMode(BIN_1, OUTPUT);
+  pinMode(BIN_2, OUTPUT);
+  pinMode(PWM_B, OUTPUT);
+  digitalWrite(STBY, HIGH);
 }
 
 void readAccel() {
@@ -144,3 +174,46 @@ void calibrateGyro() {
   Serial.print(", Gyro Bias Z = ");
   Serial.println(-gyroCalibrationZ);
 }
+
+void setMotorSpeed (int motor, int speed) {
+
+  int IN_1;
+  int IN_2;
+  int PWM;
+
+  if(motor == MOTOR_A) {
+    IN_1 = AIN_1;
+    IN_2 = AIN_2;
+    PWM = PWM_A;
+  } else {
+    IN_1 = BIN_1;
+    IN_2 = BIN_2;
+    PWM = PWM_B;
+  }
+
+  constrain(speed, -255, 255);
+  
+  if (speed > 0) {
+    // FORWARD!
+    digitalWrite(IN_1, LOW);
+    digitalWrite(IN_2, HIGH);
+    analogWrite(PWM, speed);
+  } else if (speed < 0) {
+    // BACKWARDS!
+    digitalWrite(IN_1, HIGH);
+    digitalWrite(IN_2, LOW);
+    analogWrite(PWM, -speed);
+  } else {
+    digitalWrite(IN_1, LOW);
+    digitalWrite(IN_2, LOW);
+  }
+
+}
+
+
+
+
+
+
+
+
