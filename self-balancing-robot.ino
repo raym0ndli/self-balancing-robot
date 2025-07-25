@@ -40,6 +40,8 @@ const int PWM_B = 17;
 // Motorrrr
 const int MOTOR_A = 0;
 const int MOTOR_B = 1;
+const int OFFSET_A = 1;
+const int OFFSET_B = -1;
 
 // Accelerometer
 int16_t accelXLSB, accelYLSB, accelZLSB;
@@ -72,6 +74,18 @@ float gyroUncertainty = 4 * 4;
 float accelUncertainty = 3 * 3;
 float kalmanGain;
 
+// PID controller
+float kp = 60;
+float ki = 0;
+float kd = 0;
+
+float desiredAngle = 0.5;
+float error;
+float prevError = 0;
+float prevI = 0;
+float motorInput;
+
+
 void setup() {
   Serial.begin(115200);
   Wire.begin(MPU_SDA, MPU_SCL, 400000); // Start I2C on fast mode (400 kHz)
@@ -85,16 +99,13 @@ void setup() {
 
 void loop() {
   updateKalman();
+  updatePID();
+  updateMotors();
 
-  Serial.print("Angle:");
   Serial.println(kalmanAngle);
 
   while (micros() - previousTime < timeDelta); // Wait
   previousTime = micros();
-
-  // Testing motors
-  setMotorSpeed(0,-100);
-  setMotorSpeed(1,100);
 
   eyeMode(blink, left);
   eyeMode(heart, right);
@@ -202,21 +213,46 @@ void updateKalman() {
   kalmanUncertainty = (1 - kalmanGain) * kalmanUncertainty;
 }
 
+void updatePID() {
+  error = desiredAngle - kalmanAngle;
+  float P = kp * error;
+  float I = prevI + ki * (prevError + error) / 2 * (timeDelta / 1e6);
+  float D = kd * (error - prevError) / (timeDelta / 1e6);
+  motorInput = P + I + D;
+
+  prevError = error;
+  prevI = I;
+}
+
+void updateMotors() {
+  if (abs(kalmanAngle) < 20 && abs(motorInput) > 50) {
+    setMotorSpeed(MOTOR_A, motorInput);
+    setMotorSpeed(MOTOR_B, motorInput);
+  } else {
+    setMotorSpeed(MOTOR_A, 0);
+    setMotorSpeed(MOTOR_B, 0);
+  }
+}
+
 void setMotorSpeed (int motor, int speed) {
   int IN_1;
   int IN_2;
   int PWM;
+  int OFFSET;
 
   if(motor == MOTOR_A) {
     IN_1 = AIN_1;
     IN_2 = AIN_2;
     PWM = PWM_A;
+    OFFSET = OFFSET_A;
   } else {
     IN_1 = BIN_1;
     IN_2 = BIN_2;
     PWM = PWM_B;
+    OFFSET = OFFSET_B;
   }
 
+  speed *= OFFSET;
   constrain(speed, -255, 255);
   
   if (speed > 0) {
@@ -243,13 +279,13 @@ void setupLed() {
 
   lc1.shutdown(0,false);
   // Set brightness to a medium value
-  lc1.setIntensity(0,8);
+  lc1.setIntensity(0,1);
   // Clear the display
   lc1.clearDisplay(0);
 
   lc2.shutdown(0,false);
   // Set brightness to a medium value
-  lc2.setIntensity(0,8);
+  lc2.setIntensity(0,1);
   // Clear the display
   lc2.clearDisplay(0);
 }
