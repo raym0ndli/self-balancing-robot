@@ -79,12 +79,11 @@ float kp = 60;
 float ki = 0;
 float kd = 0;
 
-float desiredAngle = 0.5;
+float desiredAngle = -2;
 float error;
 float prevError = 0;
 float prevI = 0;
 float motorInput;
-
 
 void setup() {
   Serial.begin(115200);
