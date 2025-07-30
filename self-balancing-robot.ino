@@ -1,5 +1,7 @@
 #include <Wire.h>
 #include <LedControl.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
 // MPU6050 I2C
 const int MPU = 0x68;  // Default I2C address
@@ -85,6 +87,12 @@ float prevError = 0;
 float prevI = 0;
 float motorInput;
 
+// Web Server
+const char* ssid = "Pip";
+const char* password = "12345678";
+
+WebServer server(80);
+
 void setup() {
   Serial.begin(115200);
   Wire.begin(MPU_SDA, MPU_SCL, 400000); // Start I2C on fast mode (400 kHz)
@@ -93,6 +101,8 @@ void setup() {
   // calibrateGyro();
   setupTB6612FNG();
   setupLed();
+  setupWebServer();
+
   previousTime = micros();
 }
 
@@ -100,8 +110,7 @@ void loop() {
   updateKalman();
   updatePID();
   updateMotors();
-
-  Serial.println(kalmanAngle);
+  server.handleClient();
 
   while (micros() - previousTime < timeDelta); // Wait
   previousTime = micros();
@@ -298,3 +307,45 @@ void eyeMode(byte eyeMode_values[], int side){
     }
   }
 }
+
+void setupWebServer() {
+  // Setup ESP32 as access point
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ssid, password);
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/", handleRoot);
+  server.on("/set", handleSet);
+  server.begin();
+}
+
+void handleRoot() {
+  String html = "<form action='/set'>"
+                "Kp: <input name='kp' value='" + String(kp) + "'><br>"
+                "Ki: <input name='ki' value='" + String(ki) + "'><br>"
+                "Kd: <input name='kd' value='" + String(kd) + "'><br>"
+                "Desired angle: <input name='desiredAngle' value='" + String(desiredAngle) + "'><br>"
+                "<input type='submit' value='Apply'>"
+                "</form>";
+  server.send(200, "text/html", html);
+}
+
+void handleSet() {
+  if (server.hasArg("kp")) {
+    kp = server.arg("kp").toFloat();
+  }
+  if (server.hasArg("ki")) {
+    ki = server.arg("ki").toFloat();
+  }
+  if (server.hasArg("kd")) {
+    kd = server.arg("kd").toFloat();
+  }
+  if (server.hasArg("desiredAngle")) {
+    desiredAngle = server.arg("desiredAngle").toFloat();
+  }
+
+  Serial.printf("Updated PID: Kp=%.2f Ki=%.2f Kd=%.2f Desired angle=%.2f\n", kp, ki, kd, desiredAngle);
+  server.sendHeader("Location", "/", true);
+  server.send(302, "text/plain", "");
+}
+
