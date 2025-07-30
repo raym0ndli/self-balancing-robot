@@ -67,6 +67,7 @@ float gyroBiasZ = 1.12;
 uint32_t previousTime;
 int timeDelta = 4000; // in microseconds, 250 Hz
 
+
 // Kalman filter
 float kalmanAngle = 0; // Inital angle estimate
 float kalmanUncertainty = 2 * 2; // Variance of initial angle estimate
@@ -94,6 +95,8 @@ void setup() {
   setupTB6612FNG();
   setupLed();
   previousTime = micros();
+
+  currentLEDTime = millis();
 }
 
 void loop() {
@@ -106,8 +109,27 @@ void loop() {
   while (micros() - previousTime < timeDelta); // Wait
   previousTime = micros();
 
-  eyeMode(blink, left);
-  eyeMode(heart, right);
+  if (millis() - currentLEDTime < 2000){
+    eyeMode(circle, left);
+    eyeMode(circle, right);
+  } else if (millis() - currentLEDTime < 2500) {
+    eyeMode(blink, left);
+    eyeMode(blink, right);
+  } else if (millis() - currentLEDTime < 4000){
+    eyeMode(circle, left);
+    eyeMode(circle, right);
+  } else if (millis() - currentLEDTime < 6000) {
+    eyeMode(heart, left);
+    eyeMode(heart, right);
+  } else if (millis() - currentLEDTime < 7000){
+    eyeMode(blink, left);
+    eyeMode(circle, right);
+  } else if (millis() - currentLEDTime <9000);{
+    eyeMode(happyface, left);
+    eyeMode(happyface, right);
+    currentLEDTime = millis();
+  }
+
 }
 
 void setupMPU() {
